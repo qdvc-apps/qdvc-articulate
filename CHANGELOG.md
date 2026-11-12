@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- Fix: build error with current llama.cpp (`llama_model_params` has no member `use_mmap`). Newer
+  releases replaced the mmap/mlock flags with a load mode, and the default already memory-maps
+  the model, so the engine now keeps the default.
+
 ## 0.2.1
 
 - Fix: adding `Vendor/llama.xcframework` had no effect until `.build` was deleted by hand.

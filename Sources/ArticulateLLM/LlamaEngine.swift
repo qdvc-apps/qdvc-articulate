@@ -113,7 +113,8 @@ public actor LlamaEngine: TextGenerating {
 
         var modelParams = llama_model_default_params()
         modelParams.n_gpu_layers = Int32(config.gpuLayers)
-        modelParams.use_mmap = true
+        // Loading: llama.cpp's default memory-maps the GGUF (and falls back to a normal read).
+        // Recent releases replaced `use_mmap`/`use_mlock` with a load mode, so don't set them here.
 
         let fileName = (path as NSString).lastPathComponent
         guard let loadedModel = llama_model_load_from_file(path, modelParams) else {
