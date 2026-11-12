@@ -183,6 +183,8 @@ if [[ $install -eq 1 ]]; then
     mkdir -p "$HOME/Applications"
     rm -rf "$HOME/Applications/QDVC Articulate.app"
     ditto "$app" "$HOME/Applications/QDVC Articulate.app"
+    # A new modification date makes Finder and the Dock drop their cached copy of the icon.
+    touch "$HOME/Applications/QDVC Articulate.app"
     echo "==> Installed to ~/Applications/QDVC Articulate.app"
 fi
 

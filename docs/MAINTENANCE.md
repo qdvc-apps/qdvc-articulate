@@ -73,6 +73,14 @@ bubble with a white tick on a pale green gradient, in the "Meadow" palette,
 with Apple's template geometry, matching the other QDVC apps. `--preview` also
 writes `build/icon-preview.png`.
 
+The 16 and 32 px images are written in the classic formats (`is32`/`s8mk`,
+`il32`/`l8mk`: run-length-encoded RGB plus an alpha mask). Larger sizes are
+PNG. Don't put PNG under `icp4`/`icp5`: Apple defines those codes as PNG,
+JPEG 2000 *or* raw RGB, and Finder's list view read the PNG bytes as raw RGB,
+which showed as a garbled 16 px icon. Finder caches icons. `--install` touches
+the installed app so Finder picks up a new icon. If an old one lingers, run
+`killall Finder Dock`.
+
 ## 2. Pitfalls (learned in the sibling apps)
 
 - **Public initialisers.** Public structs in `ArticulateCore` that the app

@@ -112,7 +112,7 @@ docs/                       privacy model, architecture, maintenance
 
 ## Status
 
-Version 0.2.2. It was written without access to a Mac, so expect a small round of compiler
+Version 0.2.3. It was written without access to a Mac, so expect a small round of compiler
 fixes on the first Xcode build: `scripts/build-app.sh 2>&1 | grep -E "error:" | sort -u` collects
 them all at once. `LlamaEngine.swift` targets the llama.cpp C API
 as of release b8637+. See CHANGELOG.md.

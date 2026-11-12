@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+- Fix: the app icon was garbled at 16 px (Finder list view). The .icns stored PNG under the
+  `icp4`/`icp5` codes, which some macOS drawing paths read as raw RGB. 16 and 32 px are now
+  written in the classic `is32`/`s8mk` and `il32`/`l8mk` formats (verified to decode exactly).
+- `build-app.sh --install` touches the installed app, so Finder and the Dock refresh its icon.
+
 ## 0.2.2
 
 - Fix: build error with current llama.cpp (`llama_model_params` has no member `use_mmap`). Newer

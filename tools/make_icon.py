@@ -22,7 +22,8 @@ Usage:
 
 Requires rsvg-convert (macOS: `brew install librsvg`; Debian/Ubuntu:
 `apt install librsvg2-bin`). No other dependencies; the .icns is written
-directly, so Apple's iconutil is not needed.
+directly (see "icns writing" below for why 16 and 32 px use the classic
+formats), so Apple's iconutil is not needed.
 """
 
 import argparse
@@ -30,6 +31,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -171,14 +173,98 @@ def icon_svg():
 
 
 # ---------------------------------------------------------------------------
-# .icns writing. These are the element types `iconutil` emits for a standard
-# .iconset; all of them hold PNG data.
+# .icns writing.
+#
+# 16 and 32 px are written in the classic formats: run-length-encoded RGB
+# ("is32", "il32") plus an 8-bit alpha mask ("s8mk", "l8mk"). Every macOS
+# version decodes them the same way. Do NOT store PNG under "icp4"/"icp5"
+# for those sizes: Apple defines those codes as PNG, JPEG 2000 *or* raw RGB,
+# and some drawing paths (Finder's list view, for one) read the PNG bytes as
+# raw RGB, which shows as coloured noise at 16 px. Larger sizes are PNG under
+# the codes iconutil uses for them.
 
-ICNS_ELEMENTS = [
-    ("icp4", 16), ("ic11", 32), ("icp5", 32), ("ic12", 64),
-    ("ic07", 128), ("ic13", 256), ("ic08", 256), ("ic14", 512),
-    ("ic09", 512), ("ic10", 1024),
+LEGACY_ELEMENTS = [("is32", "s8mk", 16), ("il32", "l8mk", 32)]
+PNG_ELEMENTS = [
+    ("ic11", 32), ("ic12", 64),           # 16@2x, 32@2x
+    ("ic07", 128), ("ic13", 256),          # 128, 128@2x
+    ("ic08", 256), ("ic14", 512),          # 256, 256@2x
+    ("ic09", 512), ("ic10", 1024),         # 512, 512@2x
 ]
+SIZES = sorted({s for *_, s in LEGACY_ELEMENTS} | {s for _, s in PNG_ELEMENTS})
+
+
+def decode_png_rgba(data):
+    """Pixels of an 8-bit, non-interlaced RGBA PNG (what rsvg-convert writes)
+    as a list of rows of (r, g, b, a). Standard library only."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("not a PNG")
+    pos, idat, header = 8, b"", None
+    while pos < len(data):
+        length, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        body = data[pos + 8:pos + 8 + length]
+        if kind == b"IHDR":
+            header = struct.unpack(">IIBBBBB", body)
+        elif kind == b"IDAT":
+            idat += body
+        pos += 12 + length
+    width, height, depth, colour, _, _, interlace = header
+    if (depth, colour, interlace) != (8, 6, 0):
+        raise ValueError(f"unsupported PNG layout (depth {depth}, colour type {colour}, interlace {interlace})")
+    raw = zlib.decompress(idat)
+    stride, bpp = width * 4, 4
+    rows, previous, i = [], bytearray(stride), 0
+    for _ in range(height):
+        filter_type = raw[i]
+        line = bytearray(raw[i + 1:i + 1 + stride])
+        i += 1 + stride
+        for x in range(stride):
+            a = line[x - bpp] if x >= bpp else 0
+            b = previous[x]
+            c = previous[x - bpp] if x >= bpp else 0
+            if filter_type == 1:
+                line[x] = (line[x] + a) & 0xFF
+            elif filter_type == 2:
+                line[x] = (line[x] + b) & 0xFF
+            elif filter_type == 3:
+                line[x] = (line[x] + (a + b) // 2) & 0xFF
+            elif filter_type == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                predictor = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                line[x] = (line[x] + predictor) & 0xFF
+        rows.append([tuple(line[x:x + 4]) for x in range(0, stride, 4)])
+        previous = line
+    return rows
+
+
+def icns_rle(channel):
+    """Apple's icns run-length encoding of one colour channel."""
+    out, i, n = bytearray(), 0, len(channel)
+    while i < n:
+        run = 1
+        while i + run < n and run < 130 and channel[i + run] == channel[i]:
+            run += 1
+        if run >= 3:
+            out += bytes([0x80 + run - 3, channel[i]])
+            i += run
+            continue
+        start = i
+        while i < n and i - start < 128 and not (i + 2 < n and channel[i] == channel[i + 1] == channel[i + 2]):
+            i += 1
+        out.append(i - start - 1)
+        out += channel[start:i]
+    return bytes(out)
+
+
+def legacy_elements(png):
+    """(RGB data, mask data) for one classic icon size."""
+    pixels = [px for row in decode_png_rgba(png) for px in row]
+    # Fully transparent pixels get black RGB, so they compress well and carry no stray colour.
+    red = bytes(r if a else 0 for r, _, _, a in pixels)
+    green = bytes(g if a else 0 for _, g, _, a in pixels)
+    blue = bytes(b if a else 0 for _, _, b, a in pixels)
+    mask = bytes(a for *_, a in pixels)
+    return icns_rle(red) + icns_rle(green) + icns_rle(blue), mask
 
 
 def render_png(svg_path, size, out_path):
@@ -187,10 +273,15 @@ def render_png(svg_path, size, out_path):
 
 
 def write_icns(pngs_by_size, out_path):
+    def element(code, data):
+        return code.encode("ascii") + struct.pack(">I", len(data) + 8) + data
+
     chunks = b""
-    for code, size in ICNS_ELEMENTS:
-        data = pngs_by_size[size]
-        chunks += code.encode("ascii") + struct.pack(">I", len(data) + 8) + data
+    for rgb_code, mask_code, size in LEGACY_ELEMENTS:
+        rgb, mask = legacy_elements(pngs_by_size[size])
+        chunks += element(rgb_code, rgb) + element(mask_code, mask)
+    for code, size in PNG_ELEMENTS:
+        chunks += element(code, pngs_by_size[size])
     out_path.write_bytes(b"icns" + struct.pack(">I", len(chunks) + 8) + chunks)
 
 
@@ -211,7 +302,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         pngs = {}
-        for size in sorted({s for _, s in ICNS_ELEMENTS}):
+        for size in SIZES:
             png = Path(tmp) / f"icon_{size}.png"
             render_png(svg_path, size, png)
             pngs[size] = png.read_bytes()
