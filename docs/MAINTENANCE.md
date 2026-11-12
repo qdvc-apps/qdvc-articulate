@@ -47,10 +47,21 @@ when `SIGN_IDENTITY` names a real certificate.
 ### 1.2 llama.cpp
 
 `Package.swift` links `Vendor/llama.xcframework` only if it exists (see
-Vendor/README.md). After adding or removing it, delete `.build`: SwiftPM
-caches the manifest. The build script copies `llama.framework` into
-`Contents/Frameworks`, adds the `@executable_path/../Frameworks` rpath,
-and signs the framework before the app. `Sources/ArticulateLLM/LlamaEngine.swift`
+Vendor/README.md), and then defines `QDVC_LLAMA` for `ArticulateLLM`.
+`LlamaEngine.swift` uses `#if QDVC_LLAMA`, not `#if canImport(llama)`, so a
+framework that can't be imported is a build error instead of a quiet stub.
+
+SwiftPM caches its evaluation of the manifest and doesn't notice the
+framework being added, removed or replaced. It then keeps building the
+previous way, and the app says it has no AI engine even though the framework
+is in `Vendor/`. The build script writes a fingerprint of `Vendor/llama.xcframework`
+(file names, sizes and dates, or "absent") to `.build/qdvc-llama-state`, and
+removes `.build` when the fingerprint changes. After building, it checks with
+`otool -L` that the executable really links `llama.framework`, and fails
+otherwise. It copies `llama.framework` into `Contents/Frameworks`, from the
+build products, or from the XCFramework's macOS slice if SwiftPM didn't copy
+it. It then adds the `@executable_path/../Frameworks` rpath and signs the
+framework before the app. `Sources/ArticulateLLM/LlamaEngine.swift`
 is the only file that calls the llama.cpp C API. When a llama.cpp update
 renames something, that file is where the errors appear.
 

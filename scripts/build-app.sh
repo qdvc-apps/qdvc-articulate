@@ -73,10 +73,24 @@ fi
 # Refuse to build at all if a network entitlement has crept in.
 scripts/verify-isolation.sh --entitlements-only
 
-if [[ -d Vendor/llama.xcframework ]]; then
-    echo "==> Vendor/llama.xcframework found: building with the AI engine"
+# The AI engine (llama.cpp) is optional. Package.swift links it only if
+# Vendor/llama.xcframework exists, but SwiftPM caches its reading of
+# Package.swift and does not notice when the framework is added, removed or
+# replaced: it would keep building the previous way ("Build complete!" in a
+# fraction of a second, no AI engine). So remember what the last build saw and
+# start from a clean .build whenever that changes.
+llama_xcf="Vendor/llama.xcframework"
+if [[ -d "$llama_xcf" ]]; then
+    llama_state="present $( (cd Vendor && find llama.xcframework -type f -exec stat -f '%N %z %m' {} + | sort) | shasum | cut -c1-12)"
+    echo "==> $llama_xcf found: building with the AI engine"
 else
-    echo "==> Vendor/llama.xcframework not found: building without the AI engine (rules and macOS spelling only)"
+    llama_state="absent"
+    echo "==> $llama_xcf not found: building without the AI engine (rules and macOS spelling only)"
+fi
+llama_stamp=".build/qdvc-llama-state"
+if [[ -d .build ]] && [[ "$(cat "$llama_stamp" 2>/dev/null || true)" != "$llama_state" ]]; then
+    echo "==> The AI engine changed since the last build: removing .build so SwiftPM re-reads Package.swift"
+    rm -rf .build
 fi
 
 build_args=(-c release --product QDVCArticulate)
@@ -87,6 +101,15 @@ fi
 echo "==> swift build ${build_args[*]}"
 xcrun swift build "${build_args[@]}"
 bin_dir="$(xcrun swift build "${build_args[@]}" --show-bin-path)"
+mkdir -p .build && printf '%s\n' "$llama_state" > "$llama_stamp"
+
+# Make sure the executable matches what is in Vendor/ (never ship a silent fallback).
+if [[ "$llama_state" != absent ]] && ! otool -L "$bin_dir/QDVCArticulate" | grep -q "llama.framework"; then
+    rm -f "$llama_stamp"
+    echo "error: $llama_xcf is present, but the app was built without it." >&2
+    echo "       Run again; if it persists: rm -rf .build && scripts/build-app.sh" >&2
+    exit 1
+fi
 
 app="build/QDVC Articulate.app"
 echo "==> Assembling $app"
@@ -115,11 +138,21 @@ printf 'APPL????' > "$app/Contents/PkgInfo"
 # App icon (regenerate with tools/make_icon.py; Info.plist names it AppIcon).
 cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 
-# llama.cpp, when present, is a dynamic framework next to the executable.
-if [[ -d "$bin_dir/llama.framework" ]]; then
-    echo "==> Embedding llama.framework"
+# llama.cpp, when present, is a dynamic framework: embed it in Contents/Frameworks.
+# SwiftPM normally copies it next to the executable; otherwise take the macOS
+# slice straight from the XCFramework.
+if [[ "$llama_state" != absent ]]; then
+    llama_fw="$bin_dir/llama.framework"
+    if [[ ! -d "$llama_fw" ]]; then
+        llama_fw="$(find "$llama_xcf" -maxdepth 2 -type d -name llama.framework -path '*macos*' | head -n 1)"
+    fi
+    if [[ -z "$llama_fw" ]] || [[ ! -d "$llama_fw" ]]; then
+        echo "error: no macOS llama.framework found in $bin_dir or $llama_xcf" >&2
+        exit 1
+    fi
+    echo "==> Embedding llama.framework (from ${llama_fw%/llama.framework})"
     mkdir -p "$app/Contents/Frameworks"
-    ditto "$bin_dir/llama.framework" "$app/Contents/Frameworks/llama.framework"
+    ditto "$llama_fw" "$app/Contents/Frameworks/llama.framework"
     if ! otool -l "$bin" | grep -q "@executable_path/../Frameworks"; then
         install_name_tool -add_rpath "@executable_path/../Frameworks" "$bin"
     fi
@@ -140,6 +173,11 @@ fi
 codesign "${sign_args[@]}" --entitlements Resources/QDVCArticulate.entitlements "$app"
 codesign --verify --verbose=1 "$app"
 scripts/verify-isolation.sh "$app"
+if [[ "$llama_state" != absent ]]; then
+    echo "==> AI engine: llama.cpp embedded"
+else
+    echo "==> AI engine: not included (no $llama_xcf)"
+fi
 
 if [[ $install -eq 1 ]]; then
     mkdir -p "$HOME/Applications"

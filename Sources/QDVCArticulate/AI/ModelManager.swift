@@ -46,7 +46,7 @@ final class ModelManager: ObservableObject {
     var notReadyMessage: String {
         switch state {
         case .notCompiledIn:
-            return "This build has no AI engine. Add llama.xcframework to Vendor/ and rebuild (see README)."
+            return "This build has no AI engine. Put llama.xcframework into Vendor/ and run scripts/build-app.sh again; it rebuilds from scratch when the framework has changed."
         case .noModel:
             return "No AI model selected. Choose a GGUF file in Settings → AI Model."
         case .loading:

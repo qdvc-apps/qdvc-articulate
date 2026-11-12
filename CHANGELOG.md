@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1
+
+- Fix: adding `Vendor/llama.xcframework` had no effect until `.build` was deleted by hand.
+  SwiftPM had cached the manifest's earlier "no llama.cpp" result, so the app said it had no AI
+  engine. `build-app.sh` now fingerprints the framework, cleans `.build` when it changes, checks
+  that the executable links llama.cpp, and reports whether the AI engine is included.
+- The engine is compiled in through an explicit `QDVC_LLAMA` flag from `Package.swift` instead
+  of `canImport(llama)`, so a framework that can't be imported fails the build instead of
+  producing a quiet stub.
+- The "no AI engine" message in Settings now explains how to fix it.
+
 ## 0.2.0
 
 - Adopts the QDVC macOS build mechanism: `scripts/build-app.sh [--install] [--universal]`

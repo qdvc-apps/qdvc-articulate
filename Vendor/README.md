@@ -31,12 +31,18 @@ cp -R build-apple/llama.xcframework /path/to/QDVCArticulate/Vendor/
 `build-xcframework.sh` builds every Apple platform (iOS, visionOS, tvOS, macOS). If an SDK is
 missing, edit the script to build only the macOS slice.
 
-## After adding or updating the framework
+## After adding, updating or removing the framework
 
-```sh
-rm -rf .build          # SwiftPM caches whether the framework was present
-scripts/build-app.sh
+Run `scripts/build-app.sh` again. SwiftPM caches its reading of `Package.swift` and doesn't notice
+the framework appearing or changing. The script records what the last build used, cleans `.build`
+whenever that changes, and fails if the framework is present but the app wasn't linked against it.
+It ends by saying whether the AI engine is included:
+
 ```
+==> AI engine: llama.cpp embedded
+```
+
+With plain `swift build`, run `rm -rf .build` yourself after changing `Vendor/`.
 
 If a newer llama.cpp renames a C function, the compiler errors will all be in
 `Sources/ArticulateLLM/LlamaEngine.swift`. That file is the only one that touches the llama.cpp API.

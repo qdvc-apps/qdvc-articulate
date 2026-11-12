@@ -216,7 +216,7 @@ private struct ModelSettingsView: View {
     private var statusRow: some View {
         switch models.state {
         case .notCompiledIn:
-            Label("This build has no AI engine. Put llama.xcframework into Vendor/ and rebuild.", systemImage: "exclamationmark.triangle")
+            Label(models.notReadyMessage, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.orange)
         case .noModel:
             Label("No model selected", systemImage: "circle.dashed")

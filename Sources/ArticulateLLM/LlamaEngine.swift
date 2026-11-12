@@ -1,6 +1,6 @@
 import Foundation
 import ArticulateCore
-#if canImport(llama)
+#if QDVC_LLAMA
 import llama
 #endif
 
@@ -47,7 +47,7 @@ public enum LlamaError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notCompiledIn:
-            return "This build does not include llama.cpp. Put llama.xcframework into Vendor/ and rebuild (see README)."
+            return "This build does not include llama.cpp. Put llama.xcframework into Vendor/ and run scripts/build-app.sh again (see README)."
         case .noModelLoaded:
             return "No model is loaded."
         case .loadFailed(let file):
@@ -72,7 +72,7 @@ public enum LlamaError: LocalizedError {
 /// download or server functionality, and the App Sandbox denies the process all network access.
 public actor LlamaEngine: TextGenerating {
     public static var isAvailable: Bool {
-        #if canImport(llama)
+        #if QDVC_LLAMA
         return true
         #else
         return false
@@ -92,7 +92,7 @@ public actor LlamaEngine: TextGenerating {
         self.reusePrefix = reusePromptCache
     }
 
-    #if canImport(llama)
+    #if QDVC_LLAMA
 
     private var model: OpaquePointer?
     private var context: OpaquePointer?
@@ -295,7 +295,8 @@ public actor LlamaEngine: TextGenerating {
 
     #else
 
-    // Stub used when llama.xcframework is absent (and on platforms without llama.cpp yet).
+    // Stub used when Package.swift did not find Vendor/llama.xcframework (QDVC_LLAMA undefined),
+    // and on platforms without llama.cpp yet.
 
     public func load(path: String, config: LlamaConfig) throws -> ModelInfo {
         throw LlamaError.notCompiledIn

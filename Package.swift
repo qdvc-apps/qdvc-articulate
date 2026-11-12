@@ -18,6 +18,10 @@ import Foundation
 
 // llama.cpp is linked only when the user has placed the prebuilt XCFramework into Vendor/.
 // Nothing is downloaded by the build: see Vendor/README.md.
+//
+// NOTE: SwiftPM caches the result of evaluating this manifest and does not notice when the
+// framework is added or removed. scripts/build-app.sh detects that and cleans .build itself;
+// with plain `swift build`, run `rm -rf .build` after adding or removing the framework.
 let llamaFrameworkPath = "Vendor/llama.xcframework"
 
 #if os(macOS)
@@ -27,8 +31,10 @@ let hasLlama = false
 #endif
 
 var llmDependencies: [Target.Dependency] = ["ArticulateCore"]
+var llmSwiftSettings: [SwiftSetting] = []
 if hasLlama {
     llmDependencies.append("llama")
+    llmSwiftSettings.append(.define("QDVC_LLAMA"))
 }
 
 var targets: [Target] = [
@@ -39,7 +45,10 @@ var targets: [Target] = [
     .target(
         name: "ArticulateLLM",
         dependencies: llmDependencies,
-        path: "Sources/ArticulateLLM"
+        path: "Sources/ArticulateLLM",
+        // An explicit flag rather than `canImport(llama)`: if the framework is present but can't be
+        // imported, the build fails loudly instead of silently producing an app without the AI engine.
+        swiftSettings: llmSwiftSettings
     ),
     .testTarget(
         name: "ArticulateCoreTests",

@@ -67,8 +67,9 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer   # this shell o
 
 ## Adding the AI model
 
-1. Put `llama.xcframework` into `Vendor/` (see [Vendor/README.md](Vendor/README.md)), then
-   `rm -rf .build && scripts/build-app.sh --install`.
+1. Put `llama.xcframework` into `Vendor/` (see [Vendor/README.md](Vendor/README.md)), then run
+   `scripts/build-app.sh --install` again. The script notices the new framework, rebuilds from
+   scratch and ends with `==> AI engine: llama.cpp embedded`.
 2. Get an instruction-tuned GGUF on any device and copy it to the Mac. Recommended:
    **Gemma 4 E4B Instruct, Q4_K_M** (about 5 GB, Apache 2.0). Lighter: Gemma 4 E2B. Alternative:
    Qwen3 4B/8B Instruct.
@@ -111,7 +112,7 @@ docs/                       privacy model, architecture, maintenance
 
 ## Status
 
-Version 0.2.0. It was written without access to a Mac, so expect a small round of compiler
+Version 0.2.1. It was written without access to a Mac, so expect a small round of compiler
 fixes on the first Xcode build: `scripts/build-app.sh 2>&1 | grep -E "error:" | sort -u` collects
 them all at once. `LlamaEngine.swift` targets the llama.cpp C API
 as of release b8637+. See CHANGELOG.md.
