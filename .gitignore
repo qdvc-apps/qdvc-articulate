@@ -1,0 +1,11 @@
+.DS_Store
+/.build/
+/build/
+/.swiftpm/
+*.xcodeproj/
+DerivedData/
+Package.resolved
+
+# User-supplied components (never committed)
+/Vendor/llama.xcframework/
+*.gguf
