@@ -16,7 +16,7 @@ FORBIDDEN=(
     "com.apple.security.cs.disable-library-validation"
 )
 
-fail() { echo "✗ $*" >&2; exit 1; }
+fail() { echo "error: $*" >&2; exit 1; }
 
 check_entitlements_text() {
     local text="$1" source="$2"
@@ -31,7 +31,7 @@ check_entitlements_text() {
 # Strip XML comments so the explanatory comment in the file doesn't trip the check.
 SOURCE_TEXT="$(perl -0pe 's/<!--.*?-->//gs' "$ENTITLEMENTS")"
 check_entitlements_text "$SOURCE_TEXT" "Resources/QDVCArticulate.entitlements"
-echo "✓ Entitlements file: sandbox on, no network entitlements."
+echo "==> OK: Entitlements file: sandbox on, no network entitlements."
 
 if [[ "${1:-}" == "--entitlements-only" ]]; then
     exit 0
@@ -43,10 +43,10 @@ APP="${1:-$ROOT/build/QDVC Articulate.app}"
 SIGNED="$(codesign -d --entitlements - --xml "$APP" 2>/dev/null || true)"
 [[ -n "$SIGNED" ]] || fail "Could not read entitlements from the signed app."
 check_entitlements_text "$SIGNED" "Signed app"
-echo "✓ Signed app: sandbox on, no network entitlements."
+echo "==> OK: Signed app: sandbox on, no network entitlements."
 
 PLIST="$APP/Contents/Info.plist"
 if /usr/libexec/PlistBuddy -c "Print :NSAppTransportSecurity" "$PLIST" >/dev/null 2>&1; then
     fail "Info.plist contains NSAppTransportSecurity exceptions."
 fi
-echo "✓ Info.plist: no network exceptions."
+echo "==> OK: Info.plist: no network exceptions."

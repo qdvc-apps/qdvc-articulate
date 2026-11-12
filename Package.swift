@@ -1,6 +1,12 @@
 // swift-tools-version:5.10
 //
-// QDVC Articulate — fully offline writing checker.
+// QDVC Articulate for macOS — a fully offline writing checker: spelling,
+// grammar, wording and clarity, with an optional local AI model (llama.cpp).
+// Nothing leaves the Mac: the app is sandboxed without network entitlements.
+//
+// Build:   swift build            (or open this folder in Xcode)
+// Test:    swift test
+// Bundle:  scripts/build-app.sh   (sandboxed, ad-hoc signed .app, no Apple account needed)
 //
 // Module layout (see docs/ARCHITECTURE.md):
 //   ArticulateCore  – platform-neutral checking logic (Foundation only; builds on Linux).

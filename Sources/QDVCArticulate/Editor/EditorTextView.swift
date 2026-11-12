@@ -178,6 +178,12 @@ struct EditorTextView: NSViewRepresentable {
         return scrollView
     }
 
+    /// Always take exactly the space SwiftUI offers: the text must never decide the window's width
+    /// (the rule in the other QDVC macOS apps' docs/DESIGN.md). Lines wrap to the width given.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 480, height: proposal.height ?? 360)
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.text = $text
         guard let textView = scrollView.documentView as? ArticulateTextView else { return }
