@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>qdvc.articulate.gtk4app</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>QDVC Articulate</name>
+  <summary>Check your writing entirely offline</summary>
+  <url type="homepage">https://github.com/qdvc-apps/qdvc-articulate</url>
+  <developer id="io.github.qdvc_apps">
+    <name>QDVC</name>
+  </developer>
+  <description>
+    <p>
+      A writing checker for spelling, grammar, punctuation, wording, clarity and tone. About twenty rules check
+      as you type, with the spelling dictionaries of your system, and an in-depth review by a local AI model
+      (llama.cpp with a GGUF model you choose) runs on demand, paragraph by paragraph.
+    </p>
+    <p>
+      Writing goals (variety of English, formality, audience and domain) steer both the rules and the AI. Plain
+      text and Markdown documents open in tabs; Word, OpenDocument and RTF files can be imported. Nothing ever
+      leaves your computer: the app has no network access and sees only the files you choose.
+    </p>
+  </description>
+  <launchable type="desktop-id">qdvc.articulate.gtk4app.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+</component>

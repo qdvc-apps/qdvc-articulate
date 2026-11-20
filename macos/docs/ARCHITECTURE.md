@@ -48,16 +48,19 @@
 All spans are UTF-16 offsets (`TextSpan`). That matches `NSString`/`NSTextView`. A GTK port would
 convert at the UI boundary, since GTK uses UTF-8 byte offsets or character offsets.
 
-## Porting to Linux / Windows
+## Other platforms
 
-`ArticulateCore` is pure Swift + Foundation and already builds with `swift build` on Linux. A port needs:
+The GNOME edition in [../../gtk4/](../../gtk4/README.md) is a Python port of `ArticulateCore` (it shares no
+code with this one; [../../docs/CHECKING.md](../../docs/CHECKING.md) is the contract between them). It
+replaces the macOS pieces as follows:
 
-| macOS piece | Linux (GTK4/libadwaita) | Windows |
-|---|---|---|
-| SwiftUI/AppKit UI | GTK4 via a Swift GTK binding (e.g. Adwaita for Swift), `GtkTextView` + `GtkTextTag` underlines | WinUI 3 via Swift/WinRT, or a thin C# shell |
-| `SystemSpellChecker` | Hunspell/Enchant with user-supplied `.dic/.aff` | Windows Spell Checking API |
-| llama.xcframework | `libllama.so` as a `systemLibrary` target | `llama.dll` |
-| App Sandbox (network block) | Flatpak with `--unshare=network` (no `--share=network`), or a network namespace / seccomp | AppContainer without the `internetClient` capability |
-| Security-scoped bookmarks | Flatpak document portal | `StorageFile` future-access list |
+| macOS piece | GNOME edition |
+|---|---|
+| SwiftUI/AppKit UI | GTK 4 and libadwaita (PyGObject); `Gtk.TextView` with text-tag underlines |
+| `SystemSpellChecker` (AppleSpell) | Enchant with the runtime's Hunspell dictionaries, in-process (no grammar checker) |
+| llama.xcframework | llama.cpp built from `gtk4/vendor/llama.cpp`, reached through a small C library and ctypes |
+| App Sandbox (network block) | Flatpak without `--share=network` (only the loopback interface) and without filesystem access |
+| Security-scoped bookmarks | The file chooser and document portals |
 
-`LlamaEngine` has no Apple-specific code apart from how the framework is linked.
+A Windows port would need the Windows Spell Checking API, `llama.dll` and an AppContainer without the
+`internetClient` capability. `LlamaEngine` has no Apple-specific code apart from how the framework is linked.

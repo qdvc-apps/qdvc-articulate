@@ -1,0 +1,92 @@
+# Flatpak manifest for local use (no Flathub publishing): scripts/build-app.sh
+# builds and installs it for the current user.
+#
+# Sandbox: no network (there is no --share=network, so the app runs in a
+# network namespace of its own with only the loopback interface; check with
+# Flatseal), and no filesystem permission at all: documents and the GGUF
+# model are opened through the file chooser portal, which grants access to
+# each file chosen (and keeps it across launches). Everything else is in the
+# GNOME runtime: Python, PyGObject, GTK 4, libadwaita and Enchant with its
+# Hunspell dictionaries.
+#
+# The AI engine is built from the llama.cpp checkout you place in
+# vendor/llama.cpp (see vendor/README.md): CPU only, without its tools,
+# server or download code. Without that checkout, scripts/build-app.sh
+# builds this manifest minus the part between the BEGIN and END markers, and
+# the app has no AI review. Building downloads nothing: the only sources are
+# this folder and vendor/, and the runtime is installed beforehand.
+app-id: qdvc.articulate.gtk4app
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: qdvc-articulate
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - '*.a'
+modules:
+  # BEGIN llama.cpp (removed by scripts/build-app.sh when vendor/llama.cpp is absent)
+  - name: llama-cpp
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DBUILD_SHARED_LIBS=ON
+      # Tuned for the processor of the computer that builds it (a local install). For a
+      # bundle to run on other computers, set GGML_NATIVE=OFF.
+      - -DGGML_NATIVE=ON
+      - -DGGML_BACKEND_DL=OFF
+      - -DLLAMA_BUILD_COMMON=OFF
+      - -DLLAMA_BUILD_TESTS=OFF
+      - -DLLAMA_BUILD_TOOLS=OFF
+      - -DLLAMA_BUILD_EXAMPLES=OFF
+      - -DLLAMA_BUILD_SERVER=OFF
+      - -DLLAMA_BUILD_APP=OFF
+      - -DLLAMA_CURL=OFF
+      - -DLLAMA_OPENSSL=OFF
+    sources:
+      - type: dir
+        path: ../vendor/llama.cpp
+        skip:
+          - .git
+          - build
+  - name: articulate-llama
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../native
+    build-commands:
+      # -Wno-deprecated-declarations: llama_decode and llama_batch_get_one are deprecated in the newest
+      # llama.cpp but are the calls that work across the supported releases (docs/MAINTENANCE.md §4).
+      - cc -O2 -Wall -Wno-deprecated-declarations -shared -fPIC articulate_llama.c -I/app/include -L/app/lib -lllama -o /app/lib/libqdvc-articulate-llama.so
+  # END llama.cpp
+  - name: qdvc-articulate
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ..
+        skip:
+          - build
+          - .flatpak-builder
+          - tests
+          - tools
+          - vendor
+          - native
+          - flatpak
+    build-commands:
+      - install -d /app/share/qdvc-articulate
+      - cp -r qdvc qdvc_articulate.py /app/share/qdvc-articulate/
+      - find /app/share/qdvc-articulate -name __pycache__ -prune -exec rm -rf {} +
+      - python3 -m compileall -q /app/share/qdvc-articulate
+      - install -Dm755 data/qdvc-articulate.sh /app/bin/qdvc-articulate
+      - install -Dm644 data/qdvc.articulate.gtk4app.desktop /app/share/applications/qdvc.articulate.gtk4app.desktop
+      - install -Dm644 data/qdvc.articulate.gtk4app.metainfo.xml /app/share/metainfo/qdvc.articulate.gtk4app.metainfo.xml
+      - install -Dm644 data/icons/hicolor/scalable/apps/qdvc.articulate.gtk4app.svg /app/share/icons/hicolor/scalable/apps/qdvc.articulate.gtk4app.svg
+      - install -Dm644 data/icons/hicolor/symbolic/apps/qdvc.articulate.gtk4app-symbolic.svg /app/share/icons/hicolor/symbolic/apps/qdvc.articulate.gtk4app-symbolic.svg

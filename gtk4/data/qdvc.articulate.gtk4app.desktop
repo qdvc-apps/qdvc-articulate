@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=QDVC Articulate
+GenericName=Writing Checker
+Comment=Check spelling, grammar, wording and tone entirely offline, with an optional local AI model
+Exec=qdvc-articulate %F
+Icon=qdvc.articulate.gtk4app
+Terminal=false
+Categories=Office;WordProcessor;TextTools;
+MimeType=text/plain;text/markdown;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/msword;application/vnd.oasis.opendocument.text;application/rtf;
+Keywords=spelling;grammar;proofreading;writing;style;offline;llama;
+StartupNotify=true
+StartupWMClass=qdvc-articulate
